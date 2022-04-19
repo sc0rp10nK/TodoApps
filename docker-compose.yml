@@ -1,0 +1,67 @@
+version: '3.9'
+volumes:
+  mysql-volume:
+services:
+  react:
+    build:
+      context: .
+      dockerfile: ./docker/react/Dockerfile
+    container_name: todoapps_react
+    tty: true
+    volumes:
+    - ./:/app/react
+    command: sh -c "cd front  && yarn start"
+    ports:
+      - 3000:3000
+  go:
+    build:
+      context: .
+      dockerfile: ./docker/go/Dockerfile
+    container_name: todoapps_go
+    ports:
+      - 8000:8000
+    volumes:
+      - ./backend:/go/src
+    working_dir: /go/src/app
+    tty: true
+  nginx:
+    image: nginx
+    container_name: todoapps_nginx
+    ports:
+      - 80:80
+    environment:
+      - TZ=Asia/Tokyo
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+  mysql:
+    container_name: todoapps_mysql
+    image: mysql:latest
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      TZ: 'Asia/Tokyo'
+    volumes:
+      - ./docker/mysql/initdb.d:/docker-entrypoint-initdb.d
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d
+      - mysql-volume:/var/lib/mysql
+    ports:
+    - 3306:3306
+    depends_on:
+      - go
+  testDB:
+    container_name: todoapps_testDB
+    image: mysql:latest
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_USER: ${DB_USERNAME_TEST}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD_ROOT_TEST}
+      MYSQL_DATABASE: ${DB_DATABASE_TEST}
+      TZ: 'Asia/Tokyo'
+    cap_add:
+      - SYS_NICE
+    volumes:
+      - ./docker/test_mysql/conf.d:/etc/mysql/conf.d
+      - ./docker/test_mysql:/docker-entrypoint-initdb.d
